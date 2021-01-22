@@ -34,17 +34,19 @@
 #ifdef _WIN32
     // for name resolving on windows
     // enable this if you get compiler whine about getaddrinfo() on windows
-    //#define _WIN32_WINNT 0x0501
+    #define _WIN32_WINNT 0x0501
 
     #include <ws2tcpip.h>
     #include <winsock2.h>
     #include <windows.h>
+
 #else
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
     #include <arpa/inet.h>
     #include <netdb.h>
+    #include <termios.h>
 #endif
 
 #define VERSION "0.7.1"
@@ -58,6 +60,8 @@
 #define RCON_PID                0xBADC0DE
 
 #define DATA_BUFFSIZE 4096
+
+#define MAX_PASSWORD_LENGTH 1024
 
 // rcon packet structure
 typedef struct _rc_packet {
@@ -92,6 +96,7 @@ void        print_color(int color);
 int         get_line(char *buffer, int len);
 int         run_terminal_mode(int sock);
 int         run_commands(int argc, char *argv[]);
+char       *get_pass(char *host);
 
 // Rcon protocol related functions
 rc_packet*  packet_build(int id, int cmd, char *s1);
@@ -201,8 +206,13 @@ int main(int argc, char *argv[])
 	}
 
 	if (pass == NULL) {
-		puts("You must give password (-p password).\nTry 'mcrcon -h' or 'man mcrcon' for help.");
-		return 0;
+		// prompt user for password so it isn't displayed in plaintext
+		pass = get_pass(host);
+
+		if (!pass) {
+			puts("You must give password (-p password).\nTry 'mcrcon -h' or 'man mcrcon' for help.");
+			return 0;
+		}
 	}
 
 	if(optind == argc && terminal_mode == 0)
@@ -644,6 +654,47 @@ int run_commands(int argc, char *argv[])
 			#endif
 		}
 	}
+}
+
+// prompt user for password while hiding input
+char *get_pass(char *host) {
+	char *pass = malloc(MAX_PASSWORD_LENGTH);
+
+	// hide password input
+	// https://stackoverflow.com/questions/6899025/hide-user-input-on-password-prompt
+	#ifdef _WIN32
+		HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+		DWORD mode = 0;
+		GetConsoleMode(hStdin, &mode);
+		SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+	#else
+		struct termios oldt;
+		tcgetattr(STDIN_FILENO, &oldt);
+		struct termios newt = oldt;
+		newt.c_lflag &= ~ECHO;
+		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	#endif
+
+	printf("Enter password for %s: ", host);
+
+	char c;
+	int i = 0;
+
+	while ((c = getc(stdin)) != '\n' && i < MAX_PASSWORD_LENGTH)
+		pass[i++] = c;
+
+	pass[i] = '\0';
+
+	// reset console mode and hash password
+	#ifdef _WIN32
+		SetConsoleMode(hStdin, mode);
+	#else
+		tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	#endif
+
+	putc('\n', stdout);
+
+	return pass;
 }
 
 // interactive terminal mode
