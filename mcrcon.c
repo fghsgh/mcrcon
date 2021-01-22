@@ -557,6 +557,8 @@ void packet_print(rc_packet *packet)
 
 	// print newline if string has no newline
 	if (packet->data[i-1] != 10 && packet->data[i-1] != 13) putchar('\n');
+
+        fflush(stdout);
 }
 
 rc_packet *packet_build(int id, int cmd, char *s1)
@@ -653,7 +655,8 @@ int run_terminal_mode(int sock)
 	puts("Logged in. Type 'quit' or 'exit' to quit.");
 
 	while (global_connection_alive) {
-		putchar('>');
+		fputs("> ",stdout);
+                fflush(stdout);
 		int len = get_line(command, DATA_BUFFSIZE);
 
 		if ((strcasecmp(command, "exit") && strcasecmp(command, "quit")) == 0)
