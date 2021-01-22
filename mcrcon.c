@@ -57,7 +57,7 @@
 #define RCON_AUTHENTICATE       3
 #define RCON_RESPONSEVALUE      0
 #define RCON_AUTH_RESPONSE      2
-#define RCON_PID                0xBADC0DE
+#define RCON_PID		0xBADC0DE
 
 #define DATA_BUFFSIZE 4096
 
@@ -74,7 +74,7 @@ typedef struct _rc_packet {
 
 
 // ===================================
-//  FUNCTION DEFINITIONS              
+//  FUNCTION DEFINITIONS
 // ===================================
 
 // Network related functions
@@ -85,7 +85,7 @@ void        net_close(int sd);
 int         net_connect(const char *host, const char *port);
 int         net_send(int sd, const uint8_t *buffer, size_t size);
 int         net_send_packet(int sd, rc_packet *packet);
-rc_packet*  net_recv_packet(int sd);
+rc_packet  *net_recv_packet(int sd);
 int         net_clean_incoming(int sd, int size);
 
 // Misc stuff
@@ -99,7 +99,7 @@ int         run_commands(int argc, char *argv[]);
 char       *get_pass(char *host);
 
 // Rcon protocol related functions
-rc_packet*  packet_build(int id, int cmd, char *s1);
+rc_packet  *packet_build(int id, int cmd, char *s1);
 void        packet_print(rc_packet *packet);
 int         rcon_auth(int sock, char *passwd);
 int         rcon_command(int sock, char *command);
@@ -121,15 +121,13 @@ static int global_wait_seconds = 0;
 #endif
 
 // safety stuff (windows is still misbehaving)
-void exit_proc(void)
-{
+void exit_proc(void) {
 	if (global_rsock != -1)
 		net_close(global_rsock);
 }
 
 // Check windows & linux behaviour !!!
-void sighandler(/*int sig*/)
-{
+void sighandler(/*int sig*/) {
 	global_connection_alive = 0;
 	#ifndef _WIN32
 	    exit(EXIT_SUCCESS);
@@ -138,8 +136,7 @@ void sighandler(/*int sig*/)
 
 #define MAX_WAIT_TIME 600
 
-unsigned int mcrcon_parse_seconds(char *str)
-{
+unsigned int mcrcon_parse_seconds(char *str) {
 	char *end;
 	long result = strtol(str, &end, 10);
 
@@ -161,14 +158,13 @@ unsigned int mcrcon_parse_seconds(char *str)
 	return (unsigned int) result;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int terminal_mode = 0;
 
 	char *host = getenv("MCRCON_HOST");
 	char *pass = getenv("MCRCON_PASS");
 	char *port = getenv("MCRCON_PORT");
-	
+
 	if (!port) port = "25575";
 	if (!host) host = "localhost";
 
@@ -177,17 +173,16 @@ int main(int argc, char *argv[])
 	// default getopt error handler enabled
 	opterr = 1;
 	int opt;
-	while ((opt = getopt(argc, argv, "vrtcshw:H:p:P:")) != -1)
-	{
+	while ((opt = getopt(argc, argv, "vrtcshw:H:p:P:")) != -1) {
 		switch (opt) {
-			case 'H': host = optarg;                break;
-			case 'P': port = optarg;                break;
-			case 'p': pass = optarg;                break;
+			case 'H': host = optarg;		break;
+			case 'P': port = optarg;		break;
+			case 'p': pass = optarg;		break;
 			case 'c': global_disable_colors = 1;    break;
 			case 's': global_silent_mode = 1;       break;
 			case 'i': /* reserved for interp mode */break;
-			case 't': terminal_mode = 1;            break;
-			case 'r': global_raw_output = 1;        break;
+			case 't': terminal_mode = 1;	    break;
+			case 'r': global_raw_output = 1;	break;
 			case 'w':
 				global_wait_seconds = mcrcon_parse_seconds(optarg);
 			break;
@@ -215,7 +210,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(optind == argc && terminal_mode == 0)
+	if (optind == argc && terminal_mode == 0)
 		terminal_mode = 1;
 
 	// safety features to prevent "IO: Connection reset" bug on the server side
@@ -254,8 +249,7 @@ int main(int argc, char *argv[])
 	return exit_code;
 }
 
-void usage(void)
-{
+void usage(void) {
 	puts(
 		"Usage: "IN_NAME" [OPTIONS] [COMMANDS]\n\n"
 		"Send rcon commands to Minecraft server.\n\n"
@@ -276,7 +270,7 @@ void usage(void)
 		"  MCRCON_PASS\n"
 	);
 
-	puts (
+	puts(
 		"- mcrcon will start in terminal mode if no commands are given\n"
 		"- Command-line options will override environment variables\n"
 		"- Rcon commands with spaces must be enclosed in quotes\n"
@@ -292,8 +286,7 @@ void usage(void)
 }
 
 #ifdef _WIN32
-void net_init_WSA(void)
-{
+void net_init_WSA(void) {
 	WSADATA wsadata;
 
 	// Request winsock 2.2 for now.
@@ -309,8 +302,7 @@ void net_init_WSA(void)
 #endif
 
 // socket close and cleanup
-void net_close(int sd)
-{
+void net_close(int sd) {
 	#ifdef _WIN32
 		closesocket(sd);
 		WSACleanup();
@@ -322,8 +314,7 @@ void net_close(int sd)
 // Opens and connects socket
 // http://man7.org/linux/man-pages/man3/getaddrinfo.3.html
 // https://bugs.chromium.org/p/chromium/issues/detail?id=44489
-int net_connect(const char *host, const char *port)
-{
+int net_connect(const char *host, const char *port) {
 	int sd;
 
 	struct addrinfo hints;
@@ -381,8 +372,7 @@ int net_connect(const char *host, const char *port)
 	return sd;
 }
 
-int net_send(int sd, const uint8_t *buff, size_t size)
-{
+int net_send(int sd, const uint8_t *buff, size_t size) {
 	size_t sent = 0;
 	size_t left = size;
 
@@ -399,11 +389,10 @@ int net_send(int sd, const uint8_t *buff, size_t size)
 	return 0;
 }
 
-int net_send_packet(int sd, rc_packet *packet)
-{
+int net_send_packet(int sd, rc_packet *packet) {
 	int len;
 	int total = 0;	// bytes we've sent
-	int bytesleft;	// bytes left to send 
+	int bytesleft;	// bytes left to send
 	int ret = -1;
 
 	bytesleft = len = packet->size + sizeof(int);
@@ -418,8 +407,7 @@ int net_send_packet(int sd, rc_packet *packet)
 	return ret == -1 ? -1 : 1;
 }
 
-rc_packet *net_recv_packet(int sd)
-{
+rc_packet *net_recv_packet(int sd) {
 	int psize;
 	static rc_packet packet = {0, 0, 0, { 0x00 }};
 
@@ -465,8 +453,7 @@ rc_packet *net_recv_packet(int sd)
 	return &packet;
 }
 
-int net_clean_incoming(int sd, int size)
-{
+int net_clean_incoming(int sd, int size) {
 	char tmp[size];
 	int ret = recv(sd, tmp, size, 0);
 
@@ -478,8 +465,7 @@ int net_clean_incoming(int sd, int size)
 	return ret;
 }
 
-void print_color(int color)
-{
+void print_color(int color) {
 	// sh compatible color array
 	#ifndef _WIN32
 	char *colors[] = {
@@ -507,7 +493,8 @@ void print_color(int color)
 	else
 	#endif
 	{
-		if (color >= 0x61 && color <= 0x66) color -= 0x57;
+		if (color >= 0x61 && color <= 0x66)
+			color -= 0x57;
 		else if (color >= 0x30 && color <= 0x39)
 			color -= 0x30;
 		else if (color == 0x6e)
@@ -523,8 +510,7 @@ void print_color(int color)
 }
 
 // this hacky mess might use some optimizing
-void packet_print(rc_packet *packet)
-{
+void packet_print(rc_packet *packet) {
 	if (global_raw_output == 1) {
 		for (int i = 0; packet->data[i] != 0; ++i)
 			putchar(packet->data[i]);
@@ -560,7 +546,7 @@ void packet_print(rc_packet *packet)
 			if ((unsigned char) packet->data[i] == 0xc2 && (unsigned char) packet->data[i+1] == 0xa7) {
 				i+=2;
 				continue;
-			}	
+			}
 			putchar(packet->data[i]);
 		}
 	}
@@ -568,11 +554,10 @@ void packet_print(rc_packet *packet)
 	// print newline if string has no newline
 	if (packet->data[i-1] != 10 && packet->data[i-1] != 13) putchar('\n');
 
-        fflush(stdout);
+	fflush(stdout);
 }
 
-rc_packet *packet_build(int id, int cmd, char *s1)
-{
+rc_packet *packet_build(int id, int cmd, char *s1) {
 	static rc_packet packet = {0, 0, 0, { 0x00 }};
 
 	// size + id + cmd + s1 + s2 NULL terminator
@@ -590,8 +575,7 @@ rc_packet *packet_build(int id, int cmd, char *s1)
 	return &packet;
 }
 
-int rcon_auth(int sock, char *passwd)
-{
+int rcon_auth(int sock, char *passwd) {
 	int ret;
 
 	rc_packet *packet = packet_build(RCON_PID, RCON_AUTHENTICATE, passwd);
@@ -610,8 +594,7 @@ int rcon_auth(int sock, char *passwd)
 	return packet->id == -1 ? 0 : 1;
 }
 
-int rcon_command(int sock, char *command)
-{
+int rcon_command(int sock, char *command) {
 	rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
 	if (packet == NULL) {
 		global_connection_alive = 0;
@@ -635,8 +618,7 @@ int rcon_command(int sock, char *command)
 	return 1;
 }
 
-int run_commands(int argc, char *argv[])
-{
+int run_commands(int argc, char *argv[]) {
 	int i = optind;
 
 	for (;;) {
@@ -698,8 +680,7 @@ char *get_pass(char *host) {
 }
 
 // interactive terminal mode
-int run_terminal_mode(int sock)
-{
+int run_terminal_mode(int sock) {
 	int ret = 0;
 	char command[DATA_BUFFSIZE] = {0x00};
 
@@ -707,7 +688,7 @@ int run_terminal_mode(int sock)
 
 	while (global_connection_alive) {
 		fputs("> ",stdout);
-                fflush(stdout);
+		fflush(stdout);
 		int len = get_line(command, DATA_BUFFSIZE);
 
 		if ((strcasecmp(command, "exit") && strcasecmp(command, "quit")) == 0)
@@ -721,7 +702,7 @@ int run_terminal_mode(int sock)
 
 		/* Special case for "stop" command to prevent server-side bug.
 		 * https://bugs.mojang.com/browse/MC-154617
-		 * 
+		 *
 		 * NOTE: This is hacky workaround which should be handled better to
 		 *       ensure compatibility with other servers using source RCON.
 		 * NOTE: strcasecmp() is POSIX function.
@@ -737,8 +718,7 @@ int run_terminal_mode(int sock)
 }
 
 // gets line from stdin and deals with rubbish left in the input buffer
-int get_line(char *buffer, int bsize)
-{
+int get_line(char *buffer, int bsize) {
 	char *ret = fgets(buffer, bsize, stdin);
 	if (ret == NULL)
 		exit(EXIT_FAILURE);
@@ -751,7 +731,7 @@ int get_line(char *buffer, int bsize)
 
 	int len = strlen(buffer);
 
-	// clean input buffer if needed 
+	// clean input buffer if needed
 	if (len == bsize - 1) {
 		int ch;
 		while ((ch = getchar()) != '\n' && ch != EOF);
