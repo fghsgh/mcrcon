@@ -46,6 +46,8 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
     #include <netdb.h>
+    #include <readline/readline.h>
+    #include <readline/history.h>
     #include <termios.h>
 #endif
 
@@ -80,6 +82,8 @@ typedef struct _rc_packet {
 // Network related functions
 #ifdef _WIN32
 void        net_init_WSA(void);
+char       *readline(const char *prompt);
+void        add_history(const char *p);
 #endif
 void        net_close(int sd);
 int         net_connect(const char *host, const char *port);
@@ -562,6 +566,11 @@ rc_packet *packet_build(int id, int cmd, char *s1) {
 
 	// size + id + cmd + s1 + s2 NULL terminator
 	int s1_len = strlen(s1);
+
+        /* If s1_len == DATA_BUFSIZE pascket.data will not be null terminated
+         * This will cause a problem in packet_printf (maybe other places)
+         * This should probably be s1_len >= DATA_BUFFSIZE and explicitly
+         * null terminate packet.data to be safe */
 	if (s1_len > DATA_BUFFSIZE) {
 		fprintf(stderr, "Warning: Command string too long (%d). Maximum allowed: %d.\n", s1_len, DATA_BUFFSIZE);
 		return NULL;
@@ -570,6 +579,7 @@ rc_packet *packet_build(int id, int cmd, char *s1) {
 	packet.size = sizeof(int) * 2 + s1_len + 2;
 	packet.id = id;
 	packet.cmd = cmd;
+
 	strncpy(packet.data, s1, DATA_BUFFSIZE - 1);
 
 	return &packet;
@@ -682,14 +692,22 @@ char *get_pass(char *host) {
 // interactive terminal mode
 int run_terminal_mode(int sock) {
 	int ret = 0;
-	char command[DATA_BUFFSIZE] = {0x00};
 
 	puts("Logged in. Type 'quit' or 'exit' to quit.");
 
+	char *command = NULL;
 	while (global_connection_alive) {
-		fputs("> ",stdout);
-		fflush(stdout);
-		int len = get_line(command, DATA_BUFFSIZE);
+		command = readline("> ");
+		if (command == NULL)
+			break;
+
+		/* Note that if len is > DATA_BUFFSIZE this will cause a non fatal
+		 * error in build_packet */
+		size_t len = strlen(command);
+		if (len) {
+			add_history(command);
+		}
+
 
 		if ((strcasecmp(command, "exit") && strcasecmp(command, "quit")) == 0)
 			break;
@@ -707,29 +725,45 @@ int run_terminal_mode(int sock) {
 		 *       ensure compatibility with other servers using source RCON.
 		 * NOTE: strcasecmp() is POSIX function.
 		 */
-		if (strcasecmp(command, "stop") == 0) {
+		if (strcasecmp(command, "stop") == 0)
 			break;
-		}
 
-		command[0] = len = 0;
+		free(command);
+		command = NULL;
+		len = 0;
 	}
 
 	return ret;
 }
 
-// gets line from stdin and deals with rubbish left in the input buffer
-int get_line(char *buffer, int bsize) {
-	char *ret = fgets(buffer, bsize, stdin);
-	if (ret == NULL)
-		exit(EXIT_FAILURE);
+#ifdef _WIN32
+void add_history(const char *p) {
+}
 
+// gets line from stdin and deals with rubbish left in the input buffer
+char *readline(const char *prompt) {
+	size_t bsize = DATA_BUFFSIZE;
+
+	fputs(prompt, stdout);
+
+	char *buffer = malloc( bsize );
+	if ( buffer == NULL ) {
+		fprintf( stderr, "Could not allocate memory for read buffer\n" );
+		exit(EXIT_FAILURE);
+	}
+
+	char *ret = fgets(buffer, bsize, stdin);
+	if (ret == NULL) {
+		free(buffer);
+		exit(EXIT_FAILURE);
+	}
 	if (buffer[0] == 0)
 		global_connection_alive = 0;
 
 	// remove unwanted characters from the buffer
 	buffer[strcspn(buffer, "\r\n")] = '\0';
 
-	int len = strlen(buffer);
+	size_t len = strlen(buffer);
 
 	// clean input buffer if needed
 	if (len == bsize - 1) {
@@ -737,5 +771,6 @@ int get_line(char *buffer, int bsize) {
 		while ((ch = getchar()) != '\n' && ch != EOF);
 	}
 
-	return len;
+	return buffer;
 }
+#endif
