@@ -530,7 +530,7 @@ void print_color(int color) {
 
 /* Providing a way to not spit out the newline in the case of
  * continued packet responses */
-void packet_print(rc_packet *packet, int newline) {
+void packet_print_nl(rc_packet *packet, int newline) {
 	if (global_raw_output == 1) {
 		for (int i = 0; packet->data[i] != 0; ++i)
 			putchar(packet->data[i]);
